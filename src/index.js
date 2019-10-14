@@ -5,7 +5,7 @@ import { default as detectPort } from 'detect-port';
 import * as browserstack from 'browserstack-local';
 import * as ReactDOM from 'react-dom/server';
 import * as SparkMD5 from 'spark-md5';
-import { ServerStyleSheet } from 'styled-components';
+import { css, ServerStyleSheet } from 'styled-components';
 import * as fsExtra from 'fs-extra';
 
 let app: express.Application, server: any;
@@ -213,9 +213,9 @@ export default class ReactBrowserstackScreenshot {
       const hash = SparkMD5.hash(html);
 
       const template = `<!DOCTYPE html><html lang="en"><head>
-<link rel="stylesheet" type="text/css" href="http://cdn.boomtrain.net/fonts/v1/font.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.boomtrain.net/fonts/v1/font.css">
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
 <style>
-
 html {
   box-sizing: border-box;
 }
@@ -263,11 +263,12 @@ ${html}
     }
   }
 
-  screenshot = async (reactDOM: any, dir) => {
+  screenshot = async (reactDOM: any, dir, OVERRIDE_OS) => {
     try {
+      const OS = (OVERRIDE_OS || this.OS);
       const hash = await this.createHtml(reactDOM);
       const capabilities = []
-      this.OS.forEach(os => {
+      OS.forEach(os => {
         os.os_version.forEach(osVersion => {
           osVersion.browsers.forEach(browser => {
             browser.browser_version.forEach(version => {
@@ -311,7 +312,7 @@ ${html}
       const image = await this.driver.takeScreenshot()
       await this.driver.quit();
       await new Promise(async (resolve, reject) => {
-        const dir = `${process.cwd()}/screenshots/${dirPath}`;
+        const dir = `${process.cwd()}/screenshots/__shots__/${dirPath}`;
         await fsExtra.ensureDir(dir);
         fs.writeFile(`${dir}/${capabilities.os}_${capabilities.os_version}_${capabilities.browserName}_${capabilities.browser_version}.png`, image, 'base64', (err) => {
           if (err) {

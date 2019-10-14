@@ -1,6 +1,6 @@
 {
   "name": "react-browserstack-screenshot",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "React Browserstack Screenshot",
   "main": "dist/index.js",
   "scripts": {
@@ -30,7 +30,6 @@
     "@babel/cli": "^7.6.4",
     "@babel/core": "^7.6.4",
     "@types/node": "^12.7.12",
-    "@types/selenium-webdriver": "^4.0.3",
-    "typescript": "^3.6.4"
+    "@types/selenium-webdriver": "^4.0.3"
   }
 }
