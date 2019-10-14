@@ -138,7 +138,7 @@ export default class ReactBrowserstackScreenshot {
           browsers: [
             {
               browserName : 'Safari',
-              browser_version: ['13.0.1']
+              browser_version: ['12.1']
             },
             {
               browserName: 'Firefox',
