@@ -1,6 +1,6 @@
 {
   "name": "react-browserstack-screenshot",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React Browserstack Screenshot",
   "main": "dist/index.js",
   "scripts": {
@@ -10,6 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
+    "@babel/plugin-transform-typescript": "^7.6.3",
+    "@babel/preset-env": "^7.6.3",
     "@types/react-dom": "^16.9.1",
     "babel-core": "^6.26.3",
     "babel-plugin-styled-components": "^1.10.6",
@@ -26,9 +29,6 @@
   "devDependencies": {
     "@babel/cli": "^7.6.4",
     "@babel/core": "^7.6.4",
-    "@babel/plugin-proposal-class-properties": "^7.5.5",
-    "@babel/plugin-transform-typescript": "^7.6.3",
-    "@babel/preset-env": "^7.6.3",
     "@types/node": "^12.7.12",
     "@types/selenium-webdriver": "^4.0.3",
     "typescript": "^3.6.4"
