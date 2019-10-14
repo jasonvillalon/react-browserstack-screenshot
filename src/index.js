@@ -6,6 +6,7 @@ import * as browserstack from 'browserstack-local';
 import * as ReactDOM from 'react-dom/server';
 import * as SparkMD5 from 'spark-md5';
 import { ServerStyleSheet } from 'styled-components';
+import * as fsExtra from 'fs-extra';
 
 let app: express.Application, server: any;
 const sheet = new ServerStyleSheet();
@@ -17,11 +18,14 @@ export default class ReactBrowserstackScreenshot {
     if (options.port) {
       this.port = options.port;
     }
+    this.bs_local = new browserstack.Local();
   }
 
-  user: string = null
-  key: string = null
-  port = 3009
+  user: string = null;
+  key: string = null;
+  port = 3009;
+  driver = null;
+  bs_local = null;
 
   OS = [
     {
@@ -40,11 +44,11 @@ export default class ReactBrowserstackScreenshot {
             },
             {
               browserName: 'Firefox',
-              browser_version : ['69.0', '70.0 beta', '68.0']//, '67.0', '66.0'],
+              browser_version : ['69.0']//, '70.0 beta', '68.0']//, '67.0', '66.0'],
             },
             {
               browserName: 'Chrome',
-              browser_version : ['78.0 beta', '77.0', '76.0']// , '75.0', '74.0',],
+              browser_version : ['77.0']//, '78.0 beta', '76.0']// , '75.0', '74.0',],
             }
           ]
         },
@@ -134,15 +138,15 @@ export default class ReactBrowserstackScreenshot {
           browsers: [
             {
               browserName : 'Safari',
-              browser_version: ['12.1']
+              browser_version: ['13.0.1']
             },
             {
               browserName: 'Firefox',
-              browser_version : ['69.0', '70.0 beta', '68.0']//, '67.0', '66.0'],
+              browser_version : ['69.0']//, '70.0 beta', '68.0']//, '67.0', '66.0'],
             },
             {
               browserName: 'Chrome',
-              browser_version : ['78.0 beta', '77.0', '76.0']// , '75.0', '74.0',],
+              browser_version : ['77.0']//, '78.0 beta', '76.0']// , '75.0', '74.0',],
             }
           ]
         },
@@ -259,40 +263,44 @@ ${html}
     }
   }
 
-  screenshot = async (reactDOM: any) => {
-    const hash = await this.createHtml(reactDOM);
-    const capabilities = []
-    this.OS.forEach(os => {
-      os.os_version.forEach(osVersion => {
-        osVersion.browsers.forEach(browser => {
-          browser.browser_version.forEach(version => {
-            capabilities.push({
-              'browserName': browser.browserName,
-              'browser_version': version,
-              'os': os.os,
-              'os_version': osVersion.version,
-              'resolution': '1024x768',
-              'browserstack.user': this.user,
-              'browserstack.key': this.key,
-              'name': 'Test',
-              'browserstack.local': true
+  screenshot = async (reactDOM: any, dir) => {
+    try {
+      const hash = await this.createHtml(reactDOM);
+      const capabilities = []
+      this.OS.forEach(os => {
+        os.os_version.forEach(osVersion => {
+          osVersion.browsers.forEach(browser => {
+            browser.browser_version.forEach(version => {
+              capabilities.push({
+                'browserName': browser.browserName,
+                'browser_version': version,
+                'os': os.os,
+                'os_version': osVersion.version,
+                'resolution': '1024x768',
+                'browserstack.user': this.user,
+                'browserstack.key': this.key,
+                'name': 'Test',
+                'browserstack.local': true
+              });
             });
           });
         });
       });
-    });
 
-    const queue = async index => {
-      await this.makeScreenshot(capabilities[index], reactDOM, hash)
-      if (capabilities[index+1]) {
-        await queue(index + 1)
+      const queue = async index => {
+        await this.takeScreenshot(capabilities[index], reactDOM, hash, dir)
+        if (capabilities[index+1]) {
+          return await queue(index + 1)
+        }
       }
-    }
 
-    await queue(0)
+      await queue(0)
+    } catch (err) {
+      throw err;
+    }
   }
 
-  makeScreenshot = async (capabilities, reactDOM, hash) => {
+  takeScreenshot = async (capabilities, reactDOM, hash, dirPath) => {
     this.driver = new webdriver.Builder().
     usingServer('http://hub-cloud.browserstack.com/wd/hub').
     withCapabilities(capabilities).
@@ -301,9 +309,11 @@ ${html}
 
       await this.driver.get(`http://localhost:${this.port}/${hash}`);
       const image = await this.driver.takeScreenshot()
-      this.driver.quit();
-      await new Promise((resolve, reject) => {
-        fs.writeFile(`${process.cwd()}/screenshots/${capabilities.os}_${capabilities.os_version}_${capabilities.browserName}_${capabilities.browser_version}.png`, image, 'base64', function (err) {
+      await this.driver.quit();
+      await new Promise(async (resolve, reject) => {
+        const dir = `${process.cwd()}/screenshots/${dirPath}`;
+        await fsExtra.ensureDir(dir);
+        fs.writeFile(`${dir}/${capabilities.os}_${capabilities.os_version}_${capabilities.browserName}_${capabilities.browser_version}.png`, image, 'base64', (err) => {
           if (err) {
             return reject(err);
           }
@@ -311,56 +321,58 @@ ${html}
         });
       });
     } catch (err) {
-      this.driver.quit();
-      console.log('maybe invalid browser version', err)
+      if (this.driver) await this.driver.quit();
+      console.log('maybe invalid browser version', err);
+      process.exit();
+    } finally {
+      this.driver = null;
     }
-    this.driver = null;
   }
 
   startServer = async () => {
-    if (!app) {
-      const port = await detectPort(3009);
-
-      if (port === 3009) {
-        app = express();
-        app.get('/:hash', (req: any, res: any) => res.sendFile(`${process.cwd()}/html/${req.params.hash}.html`));
-
-        await new Promise(resolve => {
-          const bs_local = new browserstack.Local();
-          const bs_local_args = {
-            'key': this.key
-          };
-          // starts the Local instance with the required arguments
-          bs_local.start(bs_local_args, function () {
-            server = app.listen(port, () => {
+    try {
+      if (!app) {
+        const port = await detectPort(3009);
   
-              const shutDown = () => {
-                if (this.driver) this.driver.quit()
-                bs_local.stop(function () {
-                });
-  
-                server.close(() => {
-                  process.exit(0);
-                });
-  
-                setTimeout(() => {
-                  console.error('Could not close connections in time, forcefully shutting down');
-                  process.exit(1);
-                }, 10000);
-              }
-  
-              process.on('SIGTERM', shutDown);
-              process.on('SIGINT', shutDown);
-              resolve()
+        if (port === 3009) {
+          await new Promise(resolve => {
+            const bs_local_args = {
+              'key': this.key
+            };
+            // starts the Local instance with the required arguments
+            this.bs_local.start(bs_local_args, () => {
+              app = express();
+              app.get('/:hash', (req: any, res: any) => res.sendFile(`${process.cwd()}/html/${req.params.hash}.html`));
+              this.server = app.listen(port, () => {
+    
+                const shutDown = () => {
+                  if (this.driver) this.driver.quit()
+                  this.bs_local.stop(() => {
+                    this.server.close(() => {
+                      process.exit(0);
+                    });
+                  });
+                };
+    
+                process.on('SIGTERM', shutDown);
+                process.on('SIGINT', shutDown);
+                resolve()
+              });
             });
           });
-        });
+        }
+  
       }
-
+      return app;
+    } catch (err) {
+      console.log(err);
     }
-    return app;
   }
+
   stopServer = () => {
-    server.close()
+    if (this.driver) this.driver.quit()
+    this.bs_local.stop(() => {
+      this.server.close();
+    });
   }
 }
