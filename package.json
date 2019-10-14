@@ -1,6 +1,6 @@
 {
   "name": "react-browserstack-screenshot",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "React Browserstack Screenshot",
   "main": "dist/index.js",
   "scripts": {
