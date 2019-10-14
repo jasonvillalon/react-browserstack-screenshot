@@ -266,7 +266,10 @@ ${html}
   screenshot = async (reactDOM: any, dir, OVERRIDE_OS) => {
     try {
       const OS = (OVERRIDE_OS || this.OS);
-      const hash = await this.createHtml(reactDOM);
+      const hash = typeof reactDOM === 'string'
+        // if we pass url
+        ? SparkMD5.hash(reactDOM)
+        : await this.createHtml(reactDOM);
       const capabilities = []
       OS.forEach(os => {
         os.os_version.forEach(osVersion => {
@@ -308,7 +311,7 @@ ${html}
     build();
     try {
 
-      await this.driver.get(`http://localhost:${this.port}/${hash}`);
+      await this.driver.get(typeof reactDOM === 'string' ? reactDOM : `http://localhost:${this.port}/${hash}`);
       const image = await this.driver.takeScreenshot()
       await this.driver.quit();
       await new Promise(async (resolve, reject) => {
